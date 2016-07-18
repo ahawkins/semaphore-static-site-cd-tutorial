@@ -1,0 +1,63 @@
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    aws_region: eu-west-1
+    app_name: semaphore-static-site-cd-article
+  tasks:
+    - name: Deploy stack
+      cloudformation:
+        state: present
+        stack_name: "{{ app_name }}"
+        region: "{{ aws_region }}"
+        disable_rollback: true
+        template: "cloudformation.json"
+        template_parameters:
+          AppName: "{{ app_name }}"
+          BucketName: "slashdeploy-{{ app_name }}"
+          Subdomain: "{{ app_name }}"
+          TLD: "slashdeploy.com"
+        tags:
+          role: "{{ app_name }}"
+      register: cf
+
+    - name: Generate site
+      command: make dist
+      environment:
+        MIDDLEMAN_MINIFY_JS: true
+        MIDDLEMAN_MINIFY_CSS: true
+        MIDDLEMAN_CDN_HOST: "//{{ cf.stack_outputs.PublicURL }}"
+      changed_when: False
+
+    - name: Upload assets
+      command: make deploy REGION={{ aws_region }} BUCKET={{ cf.stack_outputs.Bucket }}
+      changed_when: False
+
+    - name: Generate release tag
+      command: git rev-parse --short HEAD
+      register: release_tag
+      changed_when: False
+
+    - name: Create scratch dir
+      command: "mktemp -d"
+      register: tmp_dir
+      changed_when: False
+
+    - name: Create sentinel artfiact
+      copy:
+        content: "{{ release_tag.stdout }}"
+        dest: "{{ tmp_dir.stdout }}/sentinel.txt"
+      changed_when: False
+
+    - name: Upload sentinel artifact
+      s3:
+        mode: put
+        region: "{{ aws_region }}"
+        bucket: "{{ cf.stack_outputs.Bucket }}"
+        src: "{{ tmp_dir.stdout }}/sentinel.txt"
+        object: "_sentinel/{{ release_tag.stdout }}.txt"
+
+    - name: Test Deploy
+      get_url:
+        url: "http://{{ cf.stack_outputs.PublicURL }}/_sentinel/{{ release_tag.stdout }}.txt"
+        dest: "{{ tmp_dir.stdout }}/verification.txt"

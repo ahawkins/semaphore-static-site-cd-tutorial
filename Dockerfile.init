@@ -1,0 +1,9 @@
+FROM ruby:2.3
+
+RUN apt-get update -y && apt-get install -y nodejs
+
+RUN gem install middleman
+
+# Set git-config things to middleman can use git clone over HTTPS
+RUN git config --system user.name docker \
+	&& git config --system user.email docker@localhost.com

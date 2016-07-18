@@ -1,0 +1,149 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Static Website: S3 bucket, Cloudfront, & DNS",
+  "Parameters": {
+    "AppName": {
+      "Type": "String",
+      "Description": "Used for internal tagging and naming"
+    },
+    "BucketName": {
+      "Type": "String"
+    },
+    "Subdomain": {
+      "Type": "String"
+    },
+    "TLD": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": { "Ref": "BucketName" },
+        "WebsiteConfiguration": {
+          "ErrorDocument": "error.html",
+          "IndexDocument": "index.html"
+        }
+      }
+    },
+    "Policy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": { "Ref": "Bucket" },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [ "s3:GetObject" ],
+            "Resource": [{
+              "Fn::Join": [ "", [
+                "arn:aws:s3:::",
+                { "Ref": "Bucket" },
+                "/*"
+              ]]
+            }]
+          }]
+        }
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "Aliases": [
+            {
+              "Fn::Join": [ ".", [
+                { "Ref": "Subdomain" },
+                { "Ref": "TLD" }
+              ]]
+            }
+          ],
+          "Comment": { "Ref": "AppName" },
+          "DefaultRootObject": "index.html",
+          "Enabled": "true",
+          "Origins": [
+            {
+              "Id": { "Fn::Join": [ "-", [
+                { "Ref": "AppName" },
+                "s3-website"
+              ]]},
+              "DomainName": {
+                "Fn::Join": [ ".", [
+                  { "Ref": "Bucket" },
+                  { "Fn::Join": [ "-", [ "s3-website", { "Ref": "AWS::Region" } ]] },
+                  "amazonaws.com"
+                ]]
+              },
+              "CustomOriginConfig": {
+                "OriginProtocolPolicy": "http-only"
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "DefaultTTL": 300,
+            "Compress": "true",
+            "ForwardedValues": {
+              "Cookies": {
+                "Forward": "none"
+              },
+              "QueryString": "false"
+            },
+            "TargetOriginId": { "Fn::Join": [ "-", [
+              { "Ref": "AppName" },
+              "s3-website"
+            ]]},
+            "ViewerProtocolPolicy": "allow-all"
+          },
+          "PriceClass": "PriceClass_All",
+          "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": "true"
+          }
+        }
+      }
+    },
+    "DNS": {
+      "Type": "AWS::Route53::RecordSet",
+      "Properties": {
+        "HostedZoneName": {
+          "Fn::Join": [ "", [ { "Ref": "TLD" }, "." ] ]
+        },
+        "Name": {
+          "Fn::Join": [ ".", [
+            { "Ref": "Subdomain" },
+            { "Ref": "TLD" }
+          ]]
+        },
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "DNSName": { "Fn::GetAtt": [ "Distribution", "DomainName" ] }
+        },
+        "Comment": "CloudFront Distribution alias"
+      }
+    }
+  },
+  "Outputs": {
+    "Bucket": {
+      "Description": "S3 Bucket",
+      "Value": { "Ref": "Bucket" }
+    },
+    "OriginURL": {
+      "Description": "S3 Website URL",
+      "Value": { "Fn::GetAtt": [ "Bucket", "WebsiteURL" ] }
+    },
+    "DistributionURL": {
+      "Description": "Cloudfront URL",
+      "Value": { "Fn::GetAtt": [ "Distribution", "DomainName" ] }
+    },
+    "PublicURL": {
+      "Description": "Public URL",
+      "Value": { "Fn::Join": [ ".", [
+        { "Ref": "Subdomain" },
+        { "Ref": "TLD" }
+      ]]}
+    }
+  }
+}
