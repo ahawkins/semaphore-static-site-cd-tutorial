@@ -3,7 +3,7 @@
   gather_facts: False
   vars:
     aws_region: eu-west-1
-    app_name: semaphore-static-site-cd-article
+    app_name: slashdeploy-static-site-tutorial
   tasks:
     - name: Deploy stack
       cloudformation:
@@ -14,14 +14,13 @@
         template: "cloudformation.json"
         template_parameters:
           AppName: "{{ app_name }}"
-          BucketName: "slashdeploy-{{ app_name }}"
           Subdomain: "{{ app_name }}"
           TLD: "slashdeploy.com"
         tags:
           role: "{{ app_name }}"
       register: cf
 
-    - name: Generate site
+    - name: Generate assets
       command: make dist
       environment:
         MIDDLEMAN_MINIFY_JS: true

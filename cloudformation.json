@@ -4,10 +4,7 @@
   "Parameters": {
     "AppName": {
       "Type": "String",
-      "Description": "Used for internal tagging and naming"
-    },
-    "BucketName": {
-      "Type": "String"
+      "Description": "Used to create the S3 bucket"
     },
     "Subdomain": {
       "Type": "String"
@@ -20,7 +17,7 @@
     "Bucket": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
-        "BucketName": { "Ref": "BucketName" },
+        "BucketName": { "Ref": "AppName" },
         "WebsiteConfiguration": {
           "ErrorDocument": "error.html",
           "IndexDocument": "index.html"

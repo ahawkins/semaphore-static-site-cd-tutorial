@@ -31,14 +31,9 @@ page '/*.txt', layout: false
 
 # Build-specific configuration
 configure :build do
-  # Minify CSS on build
   activate :minify_css if ENV['MIDDLEMAN_MINIFY_CSS'] == 'true'
 
-  # Minify Javascript on build
   activate :minify_javascript if ENV['MIDDLEMAN_MINIFY_JS'] == 'true'
 
-  if ENV['MIDDLEMAN_CDN_HOST']
-    activate :asset_hash
-    activate :asset_host, :host => ENV['MIDDLEMAN_CDN_HOST']
-  end
+  activate :asset_hash if ENV['MIDDLEMAN_HASH_ASSETS'] == 'true'
 end
